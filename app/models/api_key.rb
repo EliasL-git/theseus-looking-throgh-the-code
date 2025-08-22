@@ -26,6 +26,7 @@ class APIKey < ApplicationRecord
   belongs_to :user
 
   validates :token, presence: true, uniqueness: true
+  validate :impersonation_requires_admin, if: :may_impersonate?
 
   scope :not_revoked, -> { where(revoked_at: nil).or(where(revoked_at: Time.now..)) }
   scope :accessible, -> { not_revoked }
@@ -51,5 +52,11 @@ class APIKey < ApplicationRecord
 
   def generate_token
     self.token ||= TOKEN.generate
+  end
+
+  def impersonation_requires_admin
+    unless user&.admin?
+      errors.add(:may_impersonate, "can only be enabled by admin users")
+    end
   end
 end

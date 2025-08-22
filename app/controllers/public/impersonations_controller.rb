@@ -12,6 +12,17 @@ module Public
 
       if @impersonation.save
         public_user = Public::User.find_or_create_by!(email: impersonation_params[:target_email])
+        
+        # Log public user impersonation for audit trail
+        Rails.logger.info "Public user impersonation: #{current_user.username} (#{current_user.id}) impersonating #{public_user.email} (#{public_user.id})"
+        Honeybadger.notify("Public user impersonation", {
+          impersonator_user_id: current_user.id,
+          impersonator_username: current_user.username,
+          target_email: public_user.email,
+          target_user_id: public_user.id,
+          justification: impersonation_params[:justification]
+        })
+        
         session[:public_user_id] = public_user.id
         session[:public_impersonator_user_id] = current_user.id
         redirect_to public_root_path

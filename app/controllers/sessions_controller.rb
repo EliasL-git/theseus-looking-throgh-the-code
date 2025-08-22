@@ -43,12 +43,29 @@ class SessionsController < ApplicationController
   def impersonate
     unless current_user.admin?
       redirect_to root_path, alert: "you are not authorized to impersonate users. this incident has been reported :-P"
-      Honeybadger.notify("Impersonation attempt by #{current_user.username} to #{params[:id]}")
+      Honeybadger.notify("Unauthorized session impersonation attempt", {
+        impersonator_user_id: current_user&.id,
+        impersonator_username: current_user&.username,
+        target_user_id: params[:id],
+        remote_ip: request.remote_ip,
+        user_agent: request.user_agent
+      })
       return
     end
 
     session[:impersonator_user_id] ||= current_user.id
     user = User.find(params[:id])
+    
+    # Log successful impersonation for audit trail  
+    Rails.logger.info "Session impersonation: #{current_user.username} (#{current_user.id}) impersonating #{user.username} (#{user.id})"
+    Honeybadger.notify("Session impersonation", {
+      impersonator_user_id: current_user.id,
+      impersonator_username: current_user.username,
+      target_user_id: user.id,
+      target_username: user.username,
+      remote_ip: request.remote_ip
+    })
+    
     session[:user_id] = user.id
     flash[:success] = "hey #{user.username}! how's it going? nice 'stache and glasses!"
     redirect_to root_path

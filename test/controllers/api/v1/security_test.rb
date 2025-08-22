@@ -87,4 +87,25 @@ class API::V1::SecurityTest < ActionDispatch::IntegrationTest
     # Should return the API key owner's data, not the target user's
     assert_equal @admin_user.slack_id, response_data['slack_id']
   end
+
+  test "non-admin users cannot create API keys with impersonation privileges" do
+    api_key = APIKey.new(
+      user: @regular_user,
+      name: "test_key",
+      may_impersonate: true
+    )
+    
+    assert_not api_key.valid?
+    assert_includes api_key.errors[:may_impersonate], "can only be enabled by admin users"
+  end
+
+  test "admin users can create API keys with impersonation privileges" do
+    api_key = APIKey.new(
+      user: @admin_user,
+      name: "admin_impersonate_key",
+      may_impersonate: true
+    )
+    
+    assert api_key.valid?
+  end
 end
